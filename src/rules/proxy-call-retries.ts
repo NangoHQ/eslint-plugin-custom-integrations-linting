@@ -1,5 +1,5 @@
 import { Rule } from 'eslint';
-import { Node, CallExpression, ObjectExpression, Property, Identifier } from 'estree';
+import { Node, CallExpression, ObjectExpression, Property, Identifier, VariableDeclarator } from 'estree';
 
 const proxyCallRetries: Rule.RuleModule = {
   meta: {
@@ -13,83 +13,83 @@ const proxyCallRetries: Rule.RuleModule = {
     schema: [],
   },
   create(context: Rule.RuleContext) {
+    const configObjects: { [key: string]: ObjectExpression } = {};
+
     return {
+      VariableDeclarator(node: Node) {
+        if (node.type === 'VariableDeclarator' && node.init && node.init.type === 'ObjectExpression') {
+          if (node.id.type === 'Identifier') {
+            configObjects[node.id.name] = node.init;
+          }
+        }
+      },
       CallExpression(node: Node) {
         if (isNangoApiCall(node)) {
           if (node.arguments.length === 0) {
-            context.report({
-              node,
-              message: 'Nango API calls should include an options object with a retries property',
-              fix(fixer) {
-                  // @ts-ignore
-                return fixer.replaceText(node, `nango.${node.callee.property.name}({ retries: 10 })`);
-              }
-            });
+            reportMissingRetries(context, node);
             return;
           }
 
           const options = node.arguments[0];
-          
-          if (!options) {
-            context.report({
-              node,
-              message: 'Nango API calls should include an options object with a retries property',
-              fix(fixer) {
-                return fixer.insertTextAfter(node.callee, '({ retries: 10 })');
-              }
-            });
-            return;
-          }
 
-          if (options.type === 'Identifier') {
-            // If the options is a variable, we need to check its declaration
-            const variable = context.getScope().variables.find(v => v.name === options.name);
-            if (variable && variable.defs[0] && variable.defs[0].node.type === 'VariableDeclarator') {
-              const declarator = variable.defs[0].node;
-              if (declarator.init && declarator.init.type === 'ObjectExpression') {
-                const retriesProperty = declarator.init.properties.find(isRetriesProperty);
-                if (retriesProperty && isValidRetriesValue(retriesProperty)) {
-                  return; // Valid case, no need to report
-                }
-              }
-            }
-            // If we can't determine the content of the variable, we don't report an error
-            return;
-          }
-
-          if (options.type !== 'ObjectExpression') {
-            return; // We can't determine the content, so we don't report an error
-          }
-
-          const retriesProperty = options.properties.find(isRetriesProperty);
-
-          if (!retriesProperty) {
-            context.report({
-              node: options,
-              message: 'Nango API calls should include a retries property in the options object',
-              fix(fixer) {
-                if (options.properties.length === 0) {
-                  return fixer.replaceText(options, '{ retries: 10 }');
-                } else {
-                  const lastProperty = options.properties[options.properties.length - 1];
-                  return fixer.insertTextAfter(lastProperty, ', retries: 10');
-                }
-              }
-            });
-          } else if (!isValidRetriesValue(retriesProperty)) {
-            context.report({
-              node: retriesProperty,
-              message: 'The retries property should be an integer value',
-              fix(fixer) {
-                return fixer.replaceText(retriesProperty.value, '10');
-              }
-            });
+          if (options.type === 'Identifier' && configObjects[options.name]) {
+            checkConfigObject(context, configObjects[options.name], options);
+          } else if (options.type === 'ObjectExpression') {
+            checkConfigObject(context, options, options);
+          } else {
+            reportMissingRetries(context, node);
           }
         }
       },
     };
   },
 };
+
+function checkConfigObject(context: Rule.RuleContext, configObject: ObjectExpression, reportNode: Node) {
+  const retriesProperty = configObject.properties.find(isRetriesProperty);
+
+  if (!retriesProperty) {
+    context.report({
+      node: reportNode,
+      message: 'Nango API calls should include a retries property in the options object',
+      fix(fixer) {
+        if (configObject.properties.length === 0) {
+          return fixer.replaceText(configObject, '{ retries: 10 }');
+        } else {
+          const sourceCode = context.getSourceCode();
+          const lastProperty = configObject.properties[configObject.properties.length - 1];
+          const lastPropertyText = sourceCode.getText(lastProperty);
+          const lastPropertyLines = lastPropertyText.split('\n');
+          const [lastPropertyIndentation] = lastPropertyLines;
+          const indentation = lastPropertyIndentation.match(/^\s*/)![0];
+          return fixer.insertTextAfter(lastProperty, `,\n${indentation}retries: 10`);
+        }
+      }
+    });
+  } else if (retriesProperty.value.type === 'Literal' && !isValidRetriesValue(retriesProperty)) {
+    context.report({
+      node: retriesProperty,
+      message: 'The retries property should be an integer value',
+      fix(fixer) {
+        return fixer.replaceText(retriesProperty.value, '10');
+      }
+    });
+  }
+}
+
+function reportMissingRetries(context: Rule.RuleContext, node: Node) {
+  if (node.type !== 'CallExpression') {
+    return; // This should never happen, but it satisfies TypeScript
+  }
+  
+  context.report({
+    node,
+    message: 'Nango API calls should include an options object with a retries property',
+    fix(fixer) {
+      return fixer.replaceText(node, `${context.getSourceCode().getText(node.callee)}({ retries: 10 })`);
+    }
+  });
+}
 
 function isNangoApiCall(node: Node): node is CallExpression {
   return (
@@ -111,9 +111,11 @@ function isRetriesProperty(prop: Node): prop is Property {
 }
 
 function isValidRetriesValue(prop: Property): boolean {
-  if (prop.value.type !== 'Literal') return false;
-  const value = prop.value.value;
-  return typeof value === 'number' && Number.isInteger(value) && value > 0;
+  if (prop.value.type === 'Literal') {
+    const value = prop.value.value;
+    return typeof value === 'number' && Number.isInteger(value) && value > 0;
+  }
+  return false;
 }
 
 export default proxyCallRetries;
