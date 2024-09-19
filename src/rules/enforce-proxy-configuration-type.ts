@@ -1,5 +1,5 @@
 import { Rule } from 'eslint';
-import { Node, CallExpression, Identifier, VariableDeclarator } from 'estree';
+import { ImportDeclaration, VariableDeclaration, VariableDeclarator, Identifier, ObjectExpression, Property } from 'estree';
 
 const enforceProxyConfigurationType: Rule.RuleModule = {
   meta: {
@@ -12,66 +12,71 @@ const enforceProxyConfigurationType: Rule.RuleModule = {
     fixable: 'code',
     schema: [],
   },
-  create(context: Rule.RuleContext) {
-    const sourceCode = context.getSourceCode();
+  create(context) {
+    let hasProxyConfigurationImport = false;
+    let configVariableName: string | null = null;
+    let importNode: ImportDeclaration | null = null;
+    let configNode: VariableDeclaration | null = null;
 
     return {
-      CallExpression(node: Node) {
-        if (isNangoApiCall(node)) {
-          const options = node.arguments[0];
-          
-          if (options && options.type === 'Identifier') {
-            const scope = sourceCode.getScope(node);
-            const variable = scope.variables.find(v => v.name === options.name);
-            if (variable && variable.defs[0] && variable.defs[0].node.type === 'VariableDeclarator') {
-              const declarator = variable.defs[0].node;
-              if (!hasProxyConfigurationType(declarator, context)) {
-                context.report({
-                  node: declarator,
-                  message: 'Configuration object for Nango API calls should be typed as ProxyConfiguration',
-                  fix(fixer) {
-                    const declarationToken = sourceCode.getFirstToken(declarator.parent);
-                    if (declarationToken && (declarationToken.value === 'const' || declarationToken.value === 'let' || declarationToken.value === 'var')) {
-                      return fixer.insertTextAfter(declarator.id, ': ProxyConfiguration');
-                    }
-                    return null;
-                  }
-                });
-              }
-            }
+      ImportDeclaration(node: ImportDeclaration) {
+        if (node.source.value === '../../models') {
+          importNode = node;
+          hasProxyConfigurationImport = node.specifiers.some(
+            (specifier) => specifier.type === 'ImportSpecifier' && 
+                           'imported' in specifier &&
+                           specifier.imported.type === 'Identifier' && 
+                           specifier.imported.name === 'ProxyConfiguration'
+          );
+        }
+      },
+      VariableDeclaration(node: VariableDeclaration) {
+        const declarator = node.declarations[0] as VariableDeclarator;
+        if (declarator && declarator.type === 'VariableDeclarator' && 
+            declarator.id.type === 'Identifier' && declarator.init && 
+            declarator.init.type === 'ObjectExpression') {
+          const properties = declarator.init.properties;
+          if (properties.some((prop): prop is Property => 
+              prop.type === 'Property' && 
+              prop.key.type === 'Identifier' && 
+              prop.key.name === 'endpoint')) {
+            configVariableName = declarator.id.name;
+            configNode = node;
           }
+        }
+      },
+      'Program:exit'() {
+        if (configVariableName && !hasProxyConfigurationImport && importNode && configNode) {
+          context.report({
+            node: context.getSourceCode().ast,
+            message: 'ProxyConfiguration type should be imported and used for Nango API call configurations',
+            fix(fixer) {
+              const fixes = [];
+
+              if (importNode && importNode.specifiers.length > 0) {
+                fixes.push(fixer.insertTextAfter(
+                  importNode.specifiers[importNode.specifiers.length - 1], 
+                  ', ProxyConfiguration'
+                ));
+              }
+
+              if (configNode && configNode.declarations.length > 0) {
+                const configDeclarator = configNode.declarations[0] as VariableDeclarator;
+                if (configDeclarator && configDeclarator.id.type === 'Identifier') {
+                  fixes.push(fixer.insertTextAfter(
+                    configDeclarator.id, 
+                    ': ProxyConfiguration'
+                  ));
+                }
+              }
+
+              return fixes;
+            },
+          });
         }
       },
     };
   },
 };
-
-function isNangoApiCall(node: Node): node is CallExpression {
-  return (
-    node.type === 'CallExpression' &&
-    node.callee.type === 'MemberExpression' &&
-    node.callee.object.type === 'Identifier' &&
-    node.callee.object.name === 'nango' &&
-    node.callee.property.type === 'Identifier' &&
-    ['get', 'post', 'put', 'patch', 'delete', 'proxy'].includes(node.callee.property.name)
-  );
-}
-
-function hasProxyConfigurationType(node: VariableDeclarator, context: Rule.RuleContext): boolean {
-  const sourceCode = context.getSourceCode();
-  const idToken = sourceCode.getFirstToken(node.id);
-  if (!idToken) return false;
-
-  const nextToken = sourceCode.getTokenAfter(idToken);
-  if (!nextToken) return false;
-
-  const tokenAfterColon = sourceCode.getTokenAfter(nextToken);
-  
-  return (
-    nextToken.type === 'Punctuator' &&
-    nextToken.value === ':' &&
-    tokenAfterColon?.value === 'ProxyConfiguration'
-  );
-}
 
 export default enforceProxyConfigurationType;
