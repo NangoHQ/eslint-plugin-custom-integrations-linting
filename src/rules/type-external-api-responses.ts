@@ -1,7 +1,6 @@
 import { Rule } from 'eslint';
 import * as path from 'path';
 import * as fs from 'fs';
-import { CallExpression, TSTypeParameterInstantiation } from '@typescript-eslint/types/dist/ast-spec';
 
 const typeExternalApiResponses: Rule.RuleModule = {
   meta: {
@@ -23,15 +22,16 @@ const typeExternalApiResponses: Rule.RuleModule = {
     };
 
     return {
-      CallExpression(node: CallExpression & Rule.NodeParentExtension) {
+      CallExpression(node: Rule.Node) {
         if (
+          node.type === 'CallExpression' &&
           node.callee.type === 'MemberExpression' &&
           node.callee.object.type === 'Identifier' &&
           node.callee.object.name === 'nango' &&
           node.callee.property.type === 'Identifier' &&
           ['get', 'post', 'put', 'patch', 'delete', 'proxy'].includes(node.callee.property.name)
         ) {
-          const typeParameters = node.typeParameters as TSTypeParameterInstantiation | undefined;
+          const typeParameters = (node as any).typeParameters;
           if (!typeParameters || typeParameters.params.length === 0) {
             context.report({
               node,

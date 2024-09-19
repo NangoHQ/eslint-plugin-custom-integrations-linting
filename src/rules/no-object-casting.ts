@@ -1,5 +1,4 @@
 import { Rule } from 'eslint';
-import { TSAsExpression, TSTypeAssertion } from '@typescript-eslint/types/dist/ast-spec';
 
 const noObjectCasting: Rule.RuleModule = {
   meta: {
@@ -13,13 +12,13 @@ const noObjectCasting: Rule.RuleModule = {
   },
   create(context: Rule.RuleContext) {
     return {
-      TSAsExpression(node: TSAsExpression) {
+      TSAsExpression(node: Rule.Node) {
         context.report({
           node,
           message: 'Avoid casting objects. Add necessary type checks instead.',
         });
       },
-      TSTypeAssertion(node: TSTypeAssertion) {
+      TSTypeAssertion(node: Rule.Node) {
         context.report({
           node,
           message: 'Avoid casting objects. Add necessary type checks instead.',
