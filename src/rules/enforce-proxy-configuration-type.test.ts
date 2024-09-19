@@ -35,8 +35,7 @@ describe('enforce-proxy-configuration-type-tests', () => {
                     };
                     `,
                     errors: [
-                        { message: 'ProxyConfiguration type should be imported from ../../models' },
-                        { message: 'ProxyConfiguration type should be used for Nango API call configurations' },
+                        { message: 'ProxyConfiguration type should be imported and used for Nango API call configurations' },
                     ],
                     output: `
                     import type { NangoSync, Account, ProxyConfiguration } from '../../models';
