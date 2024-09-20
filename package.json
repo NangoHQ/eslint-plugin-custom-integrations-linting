@@ -1,6 +1,6 @@
 {
   "name": "@nangohq/eslint-plugin-custom-integrations-linting",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Nango custom integrations ESLint plugin",
   "main": "dist/index.js",
   "private": false,
