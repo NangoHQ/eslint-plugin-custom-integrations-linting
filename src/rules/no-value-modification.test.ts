@@ -4,7 +4,7 @@ import noValueModification from './no-value-modification';
 
 const ruleTester = new RuleTester({
   parser: require.resolve('@typescript-eslint/parser'),
-  parserOptions: { ecmaVersion: 2018, sourceType: 'module' },
+  parserOptions: { ecmaVersion: 2022, sourceType: 'module' },
 });
 
 describe('no-value-modification', () => {
@@ -12,13 +12,33 @@ describe('no-value-modification', () => {
     ruleTester.run('no-value-modification', noValueModification, {
       valid: [
         `
-        const foo = { abc: 123 };
-        function addProp(foo) {
-          const updated = {
-            ...foo,
-            efg: '123'
+        const tenant_id = await getTenantId(nango);
+        const config = {
+          endpoint: 'api.xro/2.0/Payments',
+          headers: {
+            'xero-tenant-id': tenant_id,
+            'If-Modified-Since': ''
+          },
+          params: {
+            page: 1,
+            includeArchived: 'false'
+          },
+          retries: 10
+        };
+        if (nango.lastSyncDate) {
+          config.params.includeArchived = 'true';
+          config.headers['If-Modified-Since'] = nango.lastSyncDate.toISOString().replace(/\.\d{3}Z$/, '');
+        }
+        `,
+        `
+        function updateConfig(config) {
+          return {
+            ...config,
+            params: {
+              ...config.params,
+              includeArchived: 'true'
+            }
           };
-          return updated;
         }
         `,
       ],
@@ -32,13 +52,28 @@ describe('no-value-modification', () => {
           }
           `,
           errors: [{ message: 'Avoid modifying object properties directly. Consider returning a new object instead.' }],
+          output: `
+          const foo = { abc: 123 };
+          function addProp(foo) {
+            foo = { ...foo, efg: '123' };
+            return foo;
+          }
+          `,
         },
         {
           code: `
-          let counter = 0;
-          counter++;
+          function modifyConfig(config) {
+            config.params.includeArchived = 'true';
+            return config;
+          }
           `,
-          errors: [{ message: 'Avoid modifying values. Consider returning a new value instead.' }],
+          errors: [{ message: 'Avoid modifying object properties directly. Consider returning a new object instead.' }],
+          output: `
+          function modifyConfig(config) {
+            config = { ...config, params: { ...config.params, includeArchived: 'true' } };
+            return config;
+          }
+          `,
         },
       ],
     });
