@@ -1,11 +1,11 @@
 {
   "name": "@nangohq/eslint-plugin-custom-integrations-linting",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Nango custom integrations ESLint plugin",
   "main": "dist/index.js",
   "repository": {
-      "type": "git",
-      "url": "git+https://github.com/NangoHQ/eslint-plugin-custom-integrations-linting"
+    "type": "git",
+    "url": "git+https://github.com/NangoHQ/eslint-plugin-custom-integrations-linting.git"
   },
   "scripts": {
     "build": "tsc",
@@ -13,10 +13,10 @@
     "lint": "eslint ."
   },
   "files": [
-      "*.md",
-      "dist",
-      "tsconfig.json",
-      "package.json"
+    "*.md",
+    "dist",
+    "tsconfig.json",
+    "package.json"
   ],
   "keywords": [
     "eslint",
