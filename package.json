@@ -3,17 +3,27 @@
   "version": "1.0.0",
   "description": "Nango custom integrations ESLint plugin",
   "main": "dist/index.js",
+  "repository": {
+      "type": "git",
+      "url": "git+https://github.com/NangoHQ/eslint-plugin-custom-integrations-linting"
+  },
   "scripts": {
     "build": "tsc",
     "test": "vitest",
     "lint": "eslint ."
   },
+  "files": [
+      "*.md",
+      "dist",
+      "tsconfig.json",
+      "package.json"
+  ],
   "keywords": [
     "eslint",
-    "eslintplugin"
+    "eslintplugin",
+    "custom-integrations",
+    "nango"
   ],
-  "author": "",
-  "license": "ISC",
   "devDependencies": {
     "@babel/types": "^7.22.5",
     "@types/eslint": "^8.40.0",
