@@ -6,8 +6,7 @@ import proxyCallRetries from './rules/proxy-call-retries';
 import enforceProxyConfigurationType from './rules/enforce-proxy-configuration-type';
 import typeExternalApiResponses from './rules/type-external-api-responses';
 
-export = {
-  rules: {
+export const rules = {
     'enforce-proxy-configuration-type': enforceProxyConfigurationType,
     'no-console-log': noConsoleLog,
     'no-object-casting': noObjectCasting,
@@ -15,5 +14,4 @@ export = {
     'no-while-true': noWhileTrue,
     'proxy-call-retries': proxyCallRetries,
     'type-external-api-responses': typeExternalApiResponses,
-  },
 };
