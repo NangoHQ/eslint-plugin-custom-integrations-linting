@@ -23,23 +23,32 @@ const enforceProxyConfigurationType: Rule.RuleModule = {
         if (node.source.value === '../../models') {
           importNode = node;
           hasProxyConfigurationImport = node.specifiers.some(
-            (specifier) => specifier.type === 'ImportSpecifier' && 
-                           'imported' in specifier &&
-                           specifier.imported.type === 'Identifier' && 
-                           specifier.imported.name === 'ProxyConfiguration'
+            (specifier) =>
+              specifier.type === 'ImportSpecifier' &&
+              'imported' in specifier &&
+              specifier.imported.type === 'Identifier' &&
+              specifier.imported.name === 'ProxyConfiguration'
           );
         }
       },
       VariableDeclaration(node: VariableDeclaration) {
         const declarator = node.declarations[0] as VariableDeclarator;
-        if (declarator && declarator.type === 'VariableDeclarator' && 
-            declarator.id.type === 'Identifier' && declarator.init && 
-            declarator.init.type === 'ObjectExpression') {
+        if (
+          declarator &&
+          declarator.type === 'VariableDeclarator' &&
+          declarator.id.type === 'Identifier' &&
+          declarator.init &&
+          declarator.init.type === 'ObjectExpression'
+        ) {
           const properties = declarator.init.properties;
-          if (properties.some((prop): prop is Property => 
-              prop.type === 'Property' && 
-              prop.key.type === 'Identifier' && 
-              prop.key.name === 'endpoint')) {
+          if (
+            properties.some(
+              (prop): prop is Property =>
+                prop.type === 'Property' &&
+                prop.key.type === 'Identifier' &&
+                prop.key.name === 'endpoint'
+            )
+          ) {
             configVariableName = declarator.id.name;
             configNode = node;
           }
@@ -47,32 +56,37 @@ const enforceProxyConfigurationType: Rule.RuleModule = {
       },
       'Program:exit'() {
         if (configVariableName && !hasProxyConfigurationImport && importNode && configNode) {
-          context.report({
-            node: context.getSourceCode().ast,
-            message: 'ProxyConfiguration type should be imported and used for Nango API call configurations',
-            fix(fixer) {
-              const fixes = [];
+          const declarator = configNode.declarations[0] as VariableDeclarator;
 
-              if (importNode && importNode.specifiers.length > 0) {
-                fixes.push(fixer.insertTextAfter(
-                  importNode.specifiers[importNode.specifiers.length - 1], 
-                  ', ProxyConfiguration'
-                ));
-              }
+          const hasTypeAnnotation =
+            'typeAnnotation' in declarator.id && !!(declarator.id as any).typeAnnotation;
 
-              if (configNode && configNode.declarations.length > 0) {
-                const configDeclarator = configNode.declarations[0] as VariableDeclarator;
-                if (configDeclarator && configDeclarator.id.type === 'Identifier') {
-                  fixes.push(fixer.insertTextAfter(
-                    configDeclarator.id, 
-                    ': ProxyConfiguration'
-                  ));
+          if (declarator.id.type === 'Identifier' && !hasTypeAnnotation) {
+            context.report({
+              node: context.getSourceCode().ast,
+              message: 'ProxyConfiguration type should be imported and used for Nango API call configurations',
+              fix(fixer) {
+                const fixes = [];
+
+                if (importNode && importNode.specifiers.length > 0) {
+                  fixes.push(
+                    fixer.insertTextAfter(
+                      importNode.specifiers[importNode.specifiers.length - 1],
+                      ', ProxyConfiguration'
+                    )
+                  );
                 }
-              }
 
-              return fixes;
-            },
-          });
+                if (declarator && declarator.id.type === 'Identifier') {
+                  fixes.push(
+                    fixer.insertTextAfter(declarator.id, ': ProxyConfiguration')
+                  );
+                }
+
+                return fixes;
+              },
+            });
+          }
         }
       },
     };
