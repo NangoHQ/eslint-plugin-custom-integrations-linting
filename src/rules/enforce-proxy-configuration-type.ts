@@ -58,7 +58,6 @@ const enforceProxyConfigurationType: Rule.RuleModule = {
         if (configVariableName && !hasProxyConfigurationImport && importNode && configNode) {
           const declarator = configNode.declarations[0] as VariableDeclarator;
 
-          // Check if the type annotation exists (this is a TypeScript feature, so it may not be present)
           const hasTypeAnnotation =
             'typeAnnotation' in declarator.id && !!(declarator.id as any).typeAnnotation;
 
