@@ -3,12 +3,8 @@ import { describe, it } from 'vitest';
 import includeDocsForEndpoints from './include-docs-for-endpoints';
 
 const ruleTester = new RuleTester({
-  parser: require.resolve('@typescript-eslint/parser'),
-  parserOptions: {
-    ecmaVersion: 2018,
-    sourceType: 'module',
-    project: './tsconfig.json',
-  },
+    parser: require.resolve('@typescript-eslint/parser'),
+    parserOptions: { ecmaVersion: 2018, sourceType: 'module' },
 });
 
 describe('include-docs-for-endpoints', () => {
